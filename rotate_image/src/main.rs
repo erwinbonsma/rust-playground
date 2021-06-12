@@ -20,8 +20,15 @@ fn main() {
             }
         }
     };
-
     println!("num rotations = {}", num_rotations);
+
+    let output_dir = matches.value_of("output_dir");
+    if let Some(s) = output_dir {
+        println!("output directory = {}", s);
+    };
+
+    let input_image = matches.value_of("INPUT").unwrap();
+    println!("input image = {}", input_image);
 }
 
 fn create_args_parser() -> App<'static, 'static> {
