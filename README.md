@@ -1,0 +1,1 @@
+This repository will contain various small sample projects created in my journey to learn Rust.
