@@ -1,10 +1,12 @@
 use clap::{Arg, App};
+use rotate_image;
 
 fn main() {
     let app = create_args_parser();
 
     let matches = app.get_matches();
 
+    let input_image = matches.value_of("INPUT").unwrap();
     let num_rotations = match matches.value_of("num_rotations") {
         None => 12,
         Some(s) => {
@@ -20,15 +22,9 @@ fn main() {
             }
         }
     };
-    println!("num rotations = {}", num_rotations);
-
     let output_dir = matches.value_of("output_dir");
-    if let Some(s) = output_dir {
-        println!("output directory = {}", s);
-    };
 
-    let input_image = matches.value_of("INPUT").unwrap();
-    println!("input image = {}", input_image);
+    rotate_image::rotate_image(input_image, num_rotations, output_dir);
 }
 
 fn create_args_parser() -> App<'static, 'static> {
