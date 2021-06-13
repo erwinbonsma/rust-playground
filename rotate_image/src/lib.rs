@@ -51,10 +51,12 @@ fn rotate_image_buffer<P>(img: &Image<P>, num_rotations: u32, output_path: Optio
         if let Some(path) = output_path {
             let output_file = format!("output{:03}.png", degrees);
             let path = path.join(output_file);
-            println!("Saving {:?}", path);
 
-            rotated_image.save(path).unwrap();
-        };        
+            match rotated_image.save(&path) {
+                Err(err) => return error(&format!("Failed to save image {:?}: {}", &path, err)[..]),
+                Ok(_) => println!("Saved {:?}", &path)
+            };
+        };
     }
 }
 
