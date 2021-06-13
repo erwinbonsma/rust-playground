@@ -5,6 +5,7 @@ use imageproc::{
 };
 use conv::ValueInto;
 use std::path::Path;
+use stopwatch::Stopwatch;
 
 pub fn rotate_image(image_file: &str, num_rotations: u32, output_dir: Option<&str>) {
     let img = match image::open(image_file) {
@@ -37,9 +38,11 @@ fn rotate_image_buffer<P>(img: &Image<P>, num_rotations: u32, output_path: Optio
     where
         P: Pixel + Send + Sync + HasBlack + 'static,
         <P as Pixel>::Subpixel: Send + Sync,
-        [P::Subpixel]: EncodableLayout,
-        <P as Pixel>::Subpixel: ValueInto<f32> + Clamp<f32>
+        <P as Pixel>::Subpixel: ValueInto<f32> + Clamp<f32>,
+        [P::Subpixel]: EncodableLayout
 {
+    let stopwatch = Stopwatch::start_new();
+
     for i in 0..num_rotations {
         let degrees = 360 * i / num_rotations;
         let radians = (degrees as f32).to_radians();
@@ -58,8 +61,9 @@ fn rotate_image_buffer<P>(img: &Image<P>, num_rotations: u32, output_path: Optio
             };
         };
     }
-}
 
+    println!("Time taken: {}ms", stopwatch.elapsed_ms());
+}
 
 pub fn error(msg: &str) {
     println!("Error: {}", msg);
