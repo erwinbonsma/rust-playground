@@ -14,10 +14,10 @@ fn main() {
                 Ok(n) => if n > 0 && n <= 369 {
                     n
                 } else {
-                    return error("Rotation value out of range");
+                    return rotate_image::error("Rotation value out of range");
                 }
                 Err(_) => {
-                    return error("Rotion must be a number")
+                    return rotate_image::error("Rotion must be a number")
                 }
             }
         }
@@ -48,8 +48,4 @@ fn create_args_parser() -> App<'static, 'static> {
             .help("The input image")
             .required(true)
             .index(1))
-}
-
-fn error(msg: &str) {
-    println!("Error: {}", msg);
 }
