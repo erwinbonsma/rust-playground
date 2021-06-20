@@ -17,12 +17,13 @@ canvas.width = (CELL_SIZE + 1) * width + 1;
 const ctx = canvas.getContext('2d');
 
 function renderLoop() {
-  universe.tick();
+    //debugger;
+    
+    universe.tick();
 
-  //drawGrid();
-  drawCells();
+    drawCells();
 
-  requestAnimationFrame(renderLoop);
+    requestAnimationFrame(renderLoop);
 };
 
 function drawGrid() {
