@@ -1,5 +1,7 @@
 mod utils;
 
+extern crate web_sys;
+
 use wasm_bindgen::prelude::*;
 use std::fmt;
 
@@ -8,6 +10,13 @@ use std::fmt;
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+
+// A macro to provide `println!(..)`-style syntax for `console.log` logging.
+macro_rules! log {
+    ( $( $t:tt )* ) => {
+        web_sys::console::log_1(&format!( $( $t )* ).into());
+    }
+}
 
 #[wasm_bindgen]
 #[repr(u8)]
@@ -41,8 +50,10 @@ impl fmt::Display for Universe {
 #[wasm_bindgen]
 impl Universe {
     pub fn new() -> Universe {
-        let width = 128 * 2;
-        let height = 64 * 2;
+        utils::set_panic_hook();
+
+        let width =  64 * 1;
+        let height = 64 * 1;
 
         let cells = (0..width * height)
             .map(|i| {
@@ -95,6 +106,7 @@ impl Universe {
 
     pub fn tick(&mut self) {
         let mut next = self.cells.clone();
+        let mut change_count: usize = 0;
 
         for row in 0..self.height {
             for col in 0..self.width {
@@ -120,8 +132,13 @@ impl Universe {
                 };
 
                 next[idx] = next_cell;
+                if cell != next_cell {
+                    change_count += 1;
+                }
             }
         }
+
+        log!("{} cells updated", change_count);
 
         self.cells = next;
     }
