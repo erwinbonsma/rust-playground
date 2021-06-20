@@ -54,12 +54,12 @@ function isPaused() {
 const playPauseButton = document.getElementById("play-pause");
 
 function play() {
-    playPauseButton.textContent = "⏸";
+    playPauseButton.textContent = "Pause";
     renderLoop();
 };
 
 function pause() {
-    playPauseButton.textContent = "▶";
+    playPauseButton.textContent = "Play";
     cancelAnimationFrame(animationId);
     animationId = null;
 };
@@ -72,11 +72,23 @@ playPauseButton.addEventListener("click", event => {
     }
 });
 
+const stepButton = document.getElementById("step-button");
+
+stepButton.addEventListener("click", event => {
+    if (isPaused()) {
+        update();
+    } else {
+        pause();
+    }
+});
+
 const fps = new class {
     constructor() {
         this.fps = document.getElementById("fps");
         this.frames = [];
         this.lastFrameTimeStamp = performance.now();
+        this.sum = 0;
+        this.total = 0;
     }
   
     render() {
@@ -89,39 +101,32 @@ const fps = new class {
   
         // Save only the latest 100 timings.
         this.frames.push(fps);
+        this.sum += fps;
         if (this.frames.length > 100) {
-            this.frames.shift();
+            this.sum -= this.frames.shift();
         }
+
+        this.total += 1;
   
-        // Find the max, min, and mean of our 100 latest timings.
-        let min = Infinity;
-        let max = -Infinity;
-        let sum = 0;
-        for (let i = 0; i < this.frames.length; i++) {
-            sum += this.frames[i];
-            min = Math.min(this.frames[i], min);
-            max = Math.max(this.frames[i], max);
-        }
-        let mean = sum / this.frames.length;
+        let mean = this.sum / this.frames.length;
   
         // Render the statistics.
         this.fps.textContent = `
-Frames per Second:
-         latest = ${Math.round(fps)}
-avg of last 100 = ${Math.round(mean)}
-min of last 100 = ${Math.round(min)}
-max of last 100 = ${Math.round(max)}
+#Frames = ${this.total}
+#FPS    = ${Math.round(mean)}
 `.trim();
     }
 };
 
-function renderLoop() {
-    //debugger;
-
+function update() {
     fps.render();
     universe.tick();
 
     drawCells();
+}
+
+function renderLoop() {
+    update();
 
     animationId = requestAnimationFrame(renderLoop);
 };
@@ -171,12 +176,10 @@ function drawCells() {
         );
       }
     }
-  
+
     ctx.stroke();
 }
 
 drawGrid();
 drawCells();
-play();
-
-console.log("Started render loop");
+pause();
