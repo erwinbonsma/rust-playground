@@ -1,8 +1,7 @@
 mod utils;
 
-extern crate web_sys;
-
 use wasm_bindgen::prelude::*;
+use web_sys::console;
 use std::fmt;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
@@ -15,6 +14,23 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 macro_rules! log {
     ( $( $t:tt )* ) => {
         web_sys::console::log_1(&format!( $( $t )* ).into());
+    }
+}
+
+pub struct Timer<'a> {
+    name: &'a str,
+}
+
+impl<'a> Timer<'a> {
+    pub fn new(name: &'a str) -> Timer<'a> {
+        console::time_with_label(name);
+        Timer { name }
+    }
+}
+
+impl<'a> Drop for Timer<'a> {
+    fn drop(&mut self) {
+        console::time_end_with_label(self.name);
     }
 }
 
@@ -61,24 +77,29 @@ impl Universe {
     pub fn new() -> Universe {
         utils::set_panic_hook();
 
-        let width =  64 * 1;
-        let height = 64 * 1;
+        let width =  64;
+        let height = 64;
+        let size = (width + 2) * (height + 2);
 
-        let cells = (0..width * height)
-            .map(|i| {
-                if i % 2 == 0 || i % 7 == 0 {
-                    Cell::Alive
-                } else {
-                    Cell::Dead
-                }
-            })
-            .collect();
+        let cells = (0..size).map(|_i| Cell::Dead).collect();
 
-        Universe {
+        let mut instance = Universe {
             width,
             height,
             cells,
+        };
+
+        let mut i = 0;
+        for row in 0..height {
+            for col in 0..width {
+                if i % 2 == 0 || i % 7 == 0 {
+                    instance.toggle_cell(row, col);
+                }
+                i += 1;
+            }
         }
+
+        instance
     }
 
     pub fn width(&self) -> u32 {
@@ -97,16 +118,18 @@ impl Universe {
     ///
     /// Resets all cells to the dead state.
     pub fn set_width(&mut self, width: u32) {
+        let size = (width + 2) * (self.height + 2);
         self.width = width;
-        self.cells = (0..width * self.height).map(|_i| Cell::Dead).collect();
+        self.cells = (0..size).map(|_i| Cell::Dead).collect();
     }
 
     /// Set the height of the universe.
     ///
     /// Resets all cells to the dead state.
     pub fn set_height(&mut self, height: u32) {
+        let size = (self.width + 2) * (height + 2);
         self.height = height;
-        self.cells = (0..self.width * height).map(|_i| Cell::Dead).collect();
+        self.cells = (0..size).map(|_i| Cell::Dead).collect();
     }
 
     pub fn render(&self) -> String {
@@ -114,8 +137,9 @@ impl Universe {
     }
 
     pub fn tick(&mut self) {
+        let _timer = Timer::new("Universe::tick");
+
         let mut next = self.cells.clone();
-        let mut change_count: usize = 0;
 
         for row in 0..self.height {
             for col in 0..self.width {
@@ -141,41 +165,72 @@ impl Universe {
                 };
 
                 next[idx] = next_cell;
-                if cell != next_cell {
-                    change_count += 1;
-                }
             }
         }
 
-        log!("{} cells updated", change_count);
-
         self.cells = next;
+        self.update_border();
     }
 
     pub fn toggle_cell(&mut self, row: u32, column: u32) {
         let idx = self.get_index(row, column);
         self.cells[idx].toggle();
+
+        if self.on_border(row, column) {
+            self.update_border();
+        }
     }
 
     fn get_index(&self, row: u32, column: u32) -> usize {
-        (row * self.width + column) as usize
+        ((row + 1) * (self.width + 2) + column + 1) as usize
     }
 
     fn live_neighbor_count(&self, row: u32, column: u32) -> u8 {
         let mut count = 0;
-        for delta_row in [self.height - 1, 0, 1].iter().cloned() {
-            for delta_col in [self.width - 1, 0, 1].iter().cloned() {
-                if delta_row == 0 && delta_col == 0 {
-                    continue;
-                }
+        let mut idx = self.get_index(row, column) - (self.width + 3) as usize;
 
-                let neighbor_row = (row + delta_row) % self.height;
-                let neighbor_col = (column + delta_col) % self.width;
-                let idx = self.get_index(neighbor_row, neighbor_col);
-                count += self.cells[idx] as u8;
-            }
-        }
+        count += self.cells[idx] as u8; // NW
+        idx += 1;
+        count += self.cells[idx] as u8; // N
+        idx += 1;
+        count += self.cells[idx] as u8; // NE
+        idx += self.width as usize;
+        count += self.cells[idx] as u8; // W
+        idx += 2;
+        count += self.cells[idx] as u8; // E
+        idx += self.width as usize;
+        count += self.cells[idx] as u8; // SW
+        idx += 1;
+        count += self.cells[idx] as u8; // S
+        idx += 1;
+        count += self.cells[idx] as u8; // SE
+
         count
+    }
+
+    fn on_border(&self, row: u32, col: u32) -> bool {
+        row == 0 || col == 0 || row == self.height - 1 || col == self.width - 1
+    }
+
+    fn update_border(&mut self) {
+        let mut i = self.get_index(0, 0);
+        let mut j = self.get_index(0, self.width - 1);
+        let row_size = (self.width + 2) as usize;
+        for _ in 0..self.height {
+            self.cells[i - 1] = self.cells[j];
+            self.cells[j + 1] = self.cells[i];
+            i += row_size;
+            j += row_size;
+        };
+
+        i = self.get_index(0, 0) - 1;
+        j = self.get_index(self.height - 1, 0) - 1;
+        for _ in 0..row_size {
+            self.cells[i - row_size] = self.cells[j];
+            self.cells[j + row_size] = self.cells[i];
+            i += 1;
+            j += 1;
+        };
     }
 }
 
@@ -192,6 +247,7 @@ impl Universe {
             let idx = self.get_index(row, col);
             self.cells[idx] = Cell::Alive;
         }
-    }
 
+        self.update_border();
+    }
 }

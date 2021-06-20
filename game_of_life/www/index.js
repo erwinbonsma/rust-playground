@@ -1,14 +1,16 @@
 import { Cell, Universe } from "game-of-life";
 import { memory } from "game-of-life/game_of_life_bg";
 
+Error.stackTraceLimit = 20;
+
 const CELL_SIZE = 5; // px
 const GRID_COLOR = "#CCCCCC";
 const DEAD_COLOR = "#FFFFFF";
 const ALIVE_COLOR = "#000000";
 
 const universe = Universe.new();
-const width = universe.width();
-const height = universe.height();
+const width = universe.width() + 2;
+const height = universe.height() + 2;
 
 const canvas = document.getElementById("game-of-life-canvas");
 canvas.height = (CELL_SIZE + 1) * height + 1;
@@ -25,10 +27,20 @@ canvas.addEventListener("click", event => {
     const canvasLeft = (event.clientX - boundingRect.left) * scaleX;
     const canvasTop = (event.clientY - boundingRect.top) * scaleY;
   
-    const row = Math.min(Math.floor(canvasTop / (CELL_SIZE + 1)), height - 1);
-    const col = Math.min(Math.floor(canvasLeft / (CELL_SIZE + 1)), width - 1);
+    let row = Math.min(Math.floor(canvasTop / (CELL_SIZE + 1)), height - 1);
+    let col = Math.min(Math.floor(canvasLeft / (CELL_SIZE + 1)), width - 1);
+    if (row === 0) {
+        row = height - 2;
+    } else if (row === height - 1) {
+        row = 1;
+    }
+    if (col === 0) {
+        col = width - 2;
+    } else if (col === width - 1) {
+        col = 1;
+    }
   
-    universe.toggle_cell(row, col);
+    universe.toggle_cell(row - 1, col - 1);
   
     drawCells();
 });
