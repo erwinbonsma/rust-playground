@@ -11,4 +11,14 @@ module.exports = {
   plugins: [
     new CopyWebpackPlugin(['index.html'])
   ],
-};
+  devtool: 'source-map',
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        enforce: 'pre',
+        use: ['source-map-loader'],
+      },
+    ],
+  }
+}
