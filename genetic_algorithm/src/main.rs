@@ -158,6 +158,106 @@ impl Recombination for BinaryNPointBitCrossover {
     }
 }
 
+trait EvolutionConfig<T: fmt::Display> {
+    fn create(&self) -> T;
+    fn mutate(&self, parent: &T) -> T;
+    fn recombine(&self, parent1: &T, parent2: &T) -> T;
+    fn evaluate(&self, subject: &T) -> f32;
+}
+
+struct Individual<T: fmt::Display> {
+    chromosome: Box<T>,
+    fitness: Option<f32>,
+}
+
+impl<T: fmt::Display> fmt::Display for Individual<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.chromosome)?;
+        if let Some(fitness) = self.fitness {
+            write!(f, " fitness = {}", fitness)?;
+        }
+
+        Ok(())
+    }
+}
+
+struct GeneticAlgorithm<T: fmt::Display> {
+    population: Vec<Individual<T>>,
+    config: Box<dyn EvolutionConfig<T>>
+}
+
+impl<T: fmt::Display> GeneticAlgorithm<T> {
+    fn evaluate(&mut self) {
+        for indiv in self.population.iter_mut() {
+            if let None = indiv.fitness {
+                (*indiv).fitness = Some(self.config.evaluate(&indiv.chromosome));
+            }
+        }
+    }
+}
+
+impl<T: fmt::Display> GeneticAlgorithm<T> {
+    fn new(
+        size: usize,
+        config: Box<dyn EvolutionConfig<T>>
+    ) -> Self {
+        let population = (0..size).map(|_| Individual {
+            chromosome: Box::new(config.create()),
+            fitness: None
+        }).collect();
+
+        GeneticAlgorithm {
+            population,
+            config
+        }
+    }
+}
+
+impl<T: fmt::Display> fmt::Display for GeneticAlgorithm<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for individual in self.population.iter() {
+            write!(f, "{}\n", individual)?;
+        }
+
+        Ok(())
+    }
+}
+
+struct MyEvolutionConfig {
+    chromosome_len: usize,
+    mutation: BinaryBitMutation,
+    recombination: BinaryNPointBitCrossover,
+}
+
+impl MyEvolutionConfig {
+    fn new() -> Self {
+        MyEvolutionConfig {
+            chromosome_len: 16,
+            mutation: BinaryBitMutation::new(0.1),
+            recombination: BinaryNPointBitCrossover::new(2)
+        }
+    }
+}
+
+impl EvolutionConfig<BinaryChromosome> for MyEvolutionConfig {
+    fn create(&self) -> BinaryChromosome {
+        BinaryChromosome::new(self.chromosome_len)
+    }
+
+    fn mutate(&self, parent: &BinaryChromosome) -> BinaryChromosome {
+        self.mutation.mutate(parent)
+    }
+
+    fn recombine(&self, parent1: &BinaryChromosome, parent2: &BinaryChromosome) -> BinaryChromosome {
+        self.recombination.recombine(parent1, parent2)
+    }
+
+    fn evaluate(&self, subject: &BinaryChromosome) -> f32 {
+        // Count the number of ones
+        subject.bits.iter().filter(|x| *x).count() as f32 / subject.bits.len() as f32
+    }
+}
+
 fn test_creation() {
     for _ in 0..10 {
         let chromosome = BinaryChromosome::new(20);
@@ -196,8 +296,18 @@ fn test_recombination() {
     }
 }
 
+fn test_init_population() {
+    let ga_config = MyEvolutionConfig::new();
+    let mut ga = GeneticAlgorithm::new(10, Box::new(ga_config));
+
+    println!("Population:\n{}", ga);
+    ga.evaluate();
+    println!("Population:\n{}", ga);    
+}
+
 fn main() {
     test_creation();
     test_mutation();
     test_recombination();
+    test_init_population();
 }
