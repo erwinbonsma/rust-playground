@@ -1,6 +1,6 @@
 use bit_vec::BitVec;
 use rand::{self, Rng};
-use std::fmt;
+use std::{cmp, fmt};
 
 struct BinaryChromosome {
     bits: BitVec,
@@ -22,6 +22,12 @@ impl BinaryChromosome {
     fn zeroes(size: usize) -> BinaryChromosome {
         BinaryChromosome {
             bits: BitVec::from_elem(size, false)
+        }
+    }
+
+    fn ones(size: usize) -> BinaryChromosome {
+        BinaryChromosome {
+            bits: BitVec::from_elem(size, true)
         }
     }
 }
@@ -101,20 +107,97 @@ impl Mutation for BinaryBitMutation {
     }
 }
 
-fn main() {
+trait Recombination {
+    type Chromosome;
+
+    fn recombine(
+        &self, parent1: &Self::Chromosome, parent1: &Self::Chromosome
+    ) -> Self::Chromosome;
+}
+
+struct BinaryNPointBitCrossover {
+    n: usize,
+}
+
+impl BinaryNPointBitCrossover {
+    fn new(n: usize) -> Self {
+        BinaryNPointBitCrossover {
+            n
+        }
+    }
+}
+
+impl Recombination for BinaryNPointBitCrossover {
+    type Chromosome = BinaryChromosome;
+
+    fn recombine(
+        &self, parent1: &Self::Chromosome, parent2: &Self::Chromosome
+    ) -> Self::Chromosome {
+
+        let range = cmp::min(parent1.bits.len(), parent2.bits.len());
+        let mut points: Vec<usize> = (0..self.n).map(
+            |_| rand::thread_rng().gen_range(1..range)
+        ).collect();
+        &points[..].sort_unstable();
+
+        if self.n % 2 == 1 {
+            // Ensure that number of points is even
+            points.push(parent1.bits.len());
+        }
+
+        let mut child = parent1.clone();
+        for i in 0..points.len() / 2 {
+            let from = points[i * 2];
+            let to = points[i * 2 + 1];
+            for j in from..to {
+                child.bits.set(j, parent2.bits.get(j).unwrap());
+            }
+        }
+
+        child
+    }
+}
+
+fn test_creation() {
+    for _ in 0..10 {
+        let chromosome = BinaryChromosome::new(20);
+        println!("{}", chromosome);
+    }
+}
+
+fn test_mutation() {
     let len = 256;
     let chromosome = BinaryChromosome::zeroes(len);
-    println!("{}", chromosome);
 
     let prob = 0.1;
     let mutation = BinaryBitMutation::new(prob);
-    let N = 1000;
+    let n = 1000;
     let mut total_flipped = 0;
-    for _ in 0..N {
+    for _ in 0..n {
         let mutated = mutation.mutate(&chromosome);
         let flipped = mutated.bits.iter().filter(|x| *x).count();
         //println!("{} {}", mutated, flipped);
         total_flipped += flipped;
     }
-    println!("flipped = {}, expected = {}", total_flipped, prob * (len * N) as f32);
+    println!("flipped = {}, expected = {}", total_flipped, prob * (len * n) as f32);
+}
+
+fn test_recombination() {
+    let len = 100;
+    let parent1 = BinaryChromosome::zeroes(len);
+    let parent2 = BinaryChromosome::ones(len);
+
+    let max_n = 10;
+    for n in 1..max_n+1 {
+        let recombination = BinaryNPointBitCrossover::new(n);
+        let child = recombination.recombine(&parent1, &parent2);
+
+        println!("{}", child);
+    }
+}
+
+fn main() {
+    test_creation();
+    test_mutation();
+    test_recombination();
 }
