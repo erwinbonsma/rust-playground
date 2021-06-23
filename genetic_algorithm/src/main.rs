@@ -224,7 +224,6 @@ impl<T: fmt::Display> fmt::Display for GeneticAlgorithm<T> {
 }
 
 struct MyEvolutionConfig {
-    chromosome_len: usize,
     mutation: BinaryBitMutation,
     recombination: BinaryNPointBitCrossover,
 }
@@ -232,7 +231,6 @@ struct MyEvolutionConfig {
 impl MyEvolutionConfig {
     fn new() -> Self {
         MyEvolutionConfig {
-            chromosome_len: 16,
             mutation: BinaryBitMutation::new(0.1),
             recombination: BinaryNPointBitCrossover::new(2)
         }
@@ -241,7 +239,7 @@ impl MyEvolutionConfig {
 
 impl EvolutionConfig<BinaryChromosome> for MyEvolutionConfig {
     fn create(&self) -> BinaryChromosome {
-        BinaryChromosome::new(self.chromosome_len)
+        BinaryChromosome::new(16)
     }
 
     fn mutate(&self, parent: &BinaryChromosome) -> BinaryChromosome {
