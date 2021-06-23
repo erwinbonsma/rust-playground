@@ -1,6 +1,8 @@
 use bit_vec::BitVec;
 use rand::{self, Rng};
-use std::{cmp, fmt};
+use std::{clone, cmp, fmt, slice};
+
+trait Chromosome : 'static + fmt::Display + clone::Clone {}
 
 struct BinaryChromosome {
     bits: BitVec,
@@ -43,13 +45,15 @@ impl fmt::Display for BinaryChromosome {
     }
 }
 
-impl std::clone::Clone for BinaryChromosome {
+impl clone::Clone for BinaryChromosome {
     fn clone(&self) -> Self {
         BinaryChromosome {
             bits: self.bits.clone()
         }
     }
 }
+
+impl Chromosome for BinaryChromosome {}
 
 trait Mutation {
     type Chromosome;
@@ -158,19 +162,19 @@ impl Recombination for BinaryNPointBitCrossover {
     }
 }
 
-trait EvolutionConfig<T: fmt::Display> {
+trait EvolutionConfig<T: Chromosome> {
     fn create(&self) -> T;
     fn mutate(&self, parent: &T) -> T;
     fn recombine(&self, parent1: &T, parent2: &T) -> T;
     fn evaluate(&self, subject: &T) -> f32;
 }
 
-struct Individual<T: fmt::Display> {
+struct Individual<T: Chromosome> {
     chromosome: Box<T>,
     fitness: Option<f32>,
 }
 
-impl<T: fmt::Display> fmt::Display for Individual<T> {
+impl<T: Chromosome> fmt::Display for Individual<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.chromosome)?;
         if let Some(fitness) = self.fitness {
@@ -181,42 +185,139 @@ impl<T: fmt::Display> fmt::Display for Individual<T> {
     }
 }
 
-struct GeneticAlgorithm<T: fmt::Display> {
-    population: Vec<Individual<T>>,
+struct Population<T: Chromosome> {
+    individuals: Vec<Individual<T>>,
+}
+
+impl<T: Chromosome> Population<T> {
+    fn new(individuals: Vec<Individual<T>>) -> Self {
+        Population {
+            individuals
+        }
+    }
+
+    fn iter(&self) -> slice::Iter<'_, Individual<T>> {
+        self.individuals.iter()
+    }
+
+    fn iter_mut(&mut self) -> slice::IterMut<'_, Individual<T>> {
+        self.individuals.iter_mut()
+    }
+}
+
+impl<T: Chromosome> fmt::Display for Population<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for individual in self.individuals.iter() {
+            write!(f, "{}\n", individual)?;
+        }
+
+        Ok(())
+    }
+}
+
+trait Selector<T: Chromosome> {
+    fn select(&self) -> &Individual<T>;
+}
+
+trait SelectionFactory<T: Chromosome> {
+    fn sample_from(&self, population: Population<T>) -> Box<dyn Selector<T>>;
+}
+
+#[derive(clone::Clone)]
+struct RankBasedSelection {
+    group_size: usize
+}
+
+struct RankBasedSelector<T: Chromosome> {
+    selection: RankBasedSelection,
+    population: Population<T>
+}
+
+impl RankBasedSelection {
+    fn new(group_size: usize) -> Self {
+        RankBasedSelection {
+            group_size
+        }
+    }
+}
+
+impl<T: Chromosome> SelectionFactory<T> for RankBasedSelection {
+    fn sample_from(&self, population: Population<T>) -> Box<dyn Selector<T>> {
+        Box::new(
+            RankBasedSelector {
+                selection: self.clone(),
+                population
+            }
+        )
+    }
+}
+
+impl<T: Chromosome> RankBasedSelector<T> {
+    fn select_one(&self) -> &Individual<T> {
+        self.population.individuals.get(
+            rand::thread_rng().gen_range(0..self.population.individuals.len())
+        ).unwrap()
+    }
+}
+
+impl<T: Chromosome> Selector<T> for RankBasedSelector<T> {
+    fn select(&self) -> &Individual<T> {
+        let mut best = self.select_one();
+
+        for _ in 1..self.selection.group_size {
+            let other = self.select_one();
+
+            if other.fitness > best.fitness {
+                best = other;
+            }
+        }
+
+        best
+    }
+}
+
+struct GeneticAlgorithm<T: Chromosome> {
+    pop_size: usize,
+    population: Option<Population<T>>,
     config: Box<dyn EvolutionConfig<T>>
 }
 
-impl<T: fmt::Display> GeneticAlgorithm<T> {
-    fn evaluate(&mut self) {
-        for indiv in self.population.iter_mut() {
-            if let None = indiv.fitness {
-                (*indiv).fitness = Some(self.config.evaluate(&indiv.chromosome));
-            }
-        }
-    }
-}
-
-impl<T: fmt::Display> GeneticAlgorithm<T> {
+impl<T: Chromosome> GeneticAlgorithm<T> {
     fn new(
-        size: usize,
+        pop_size: usize,
         config: Box<dyn EvolutionConfig<T>>
     ) -> Self {
-        let population = (0..size).map(|_| Individual {
-            chromosome: Box::new(config.create()),
+        GeneticAlgorithm {
+            pop_size,
+            config,
+            population: None,
+        }
+    }
+
+    fn start(&mut self) {
+        let individuals = (0..self.pop_size).map(|_| Individual {
+            chromosome: Box::new(self.config.create()),
             fitness: None
         }).collect();
 
-        GeneticAlgorithm {
-            population,
-            config
+        self.population = Some(Population::new(individuals));
+    }
+
+    fn evaluate(&mut self) {
+        if let Some(mut population) = &self.population {
+            for indiv in population.iter_mut() {
+                if let None = indiv.fitness {
+                    (*indiv).fitness = Some(self.config.evaluate(&indiv.chromosome));
+                }
+            }    
         }
     }
 }
 
-impl<T: fmt::Display> fmt::Display for GeneticAlgorithm<T> {
+impl<T: Chromosome> fmt::Display for GeneticAlgorithm<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for individual in self.population.iter() {
-            write!(f, "{}\n", individual)?;
+        if let Some(population) = &self.population {
+            write!(f, "Population:\n{}", population);            
         }
 
         Ok(())
@@ -298,9 +399,10 @@ fn test_init_population() {
     let ga_config = MyEvolutionConfig::new();
     let mut ga = GeneticAlgorithm::new(10, Box::new(ga_config));
 
-    println!("Population:\n{}", ga);
+    ga.start();
+    println!("{}", ga);
     ga.evaluate();
-    println!("Population:\n{}", ga);    
+    println!("{}", ga);    
 }
 
 fn main() {
