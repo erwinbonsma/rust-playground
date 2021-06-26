@@ -58,7 +58,7 @@ impl Chromosome for BinaryChromosome {}
 trait Mutation {
     type Chromosome;
 
-    fn mutate(&self, parent: &Self::Chromosome) -> Self::Chromosome;
+    fn mutate(&self, target: &mut Self::Chromosome);
 }
 
 struct BinaryBitMutation {
@@ -76,9 +76,7 @@ impl BinaryBitMutation {
 impl Mutation for BinaryBitMutation {
     type Chromosome = BinaryChromosome;
 
-    fn mutate(&self, parent: &Self::Chromosome) -> Self::Chromosome {
-        let mut mutated = parent.clone();
-
+    fn mutate(&self, target: &mut Self::Chromosome) {
         // Instead of checking for each bit individually if it should be flipped, this function
         // calculates which bits should be flipped. It calculates which bit to mutate next as
         // follows:
@@ -101,11 +99,11 @@ impl Mutation for BinaryBitMutation {
             // Note: the cast rounds towards zero and maps the infinity float value and other
             // values that are "too big" to the maximum integer value, which is what we want.
             i += (num / denom) as usize;
-            if i >= mutated.bits.len() {
-                return mutated;
+            if i >= target.bits.len() {
+                return;
             }
 
-            mutated.bits.set(i, !mutated.bits.get(i).unwrap());
+            target.bits.set(i, !target.bits.get(i).unwrap());
             i += 1;
         }
     }
@@ -167,7 +165,7 @@ trait ChromosomeFactory<T: Chromosome> {
 }
 
 trait EvolutionConfig<T: Chromosome>: ChromosomeFactory<T> {
-    fn mutate(&self, parent: &T) -> T;
+    fn mutate(&self, target: &mut T);
     fn recombine(&self, parent1: &T, parent2: &T) -> T;
     fn evaluate(&self, subject: &T) -> f32;
 }
@@ -381,11 +379,8 @@ impl<T: Chromosome> GeneticAlgorithm<T> {
                 }
             );
 
-            // TODO: Use in-place mutation
             if rand::thread_rng().gen::<f32>() < self.mutation_prob {
-                chromosome = Box::new(
-                    self.config.mutate(&chromosome)
-                );
+                self.config.mutate(&mut chromosome)
             }
 
             population.add(Individual::new(chromosome))
@@ -421,13 +416,13 @@ impl MyEvolutionConfig {
 
 impl ChromosomeFactory<BinaryChromosome> for MyEvolutionConfig {
     fn create(&self) -> BinaryChromosome {
-        BinaryChromosome::new(16)
+        BinaryChromosome::new(32)
     }
 }
 
 impl EvolutionConfig<BinaryChromosome> for MyEvolutionConfig {
-    fn mutate(&self, parent: &BinaryChromosome) -> BinaryChromosome {
-        self.mutation.mutate(parent)
+    fn mutate(&self, target: &mut BinaryChromosome) {
+        self.mutation.mutate(target);
     }
 
     fn recombine(&self, parent1: &BinaryChromosome, parent2: &BinaryChromosome) -> BinaryChromosome {
@@ -456,7 +451,8 @@ fn test_mutation() {
     let n = 1000;
     let mut total_flipped = 0;
     for _ in 0..n {
-        let mutated = mutation.mutate(&chromosome);
+        let mut mutated = chromosome.clone();
+        mutation.mutate(&mut mutated);
         let flipped = mutated.bits.iter().filter(|x| *x).count();
         //println!("{} {}", mutated, flipped);
         total_flipped += flipped;
