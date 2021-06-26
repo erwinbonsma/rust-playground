@@ -177,6 +177,15 @@ struct Individual<T: Chromosome> {
     fitness: Option<f32>,
 }
 
+impl<T: Chromosome> Individual<T> {
+    fn new(chromosome: Box<T>) -> Self {
+        Individual {
+            chromosome,
+            fitness: None
+        }
+    }
+}
+
 impl<T: Chromosome> fmt::Display for Individual<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.chromosome)?;
@@ -193,22 +202,26 @@ struct Population<T: Chromosome> {
 }
 
 impl<T: Chromosome> Population<T> {
-
-    fn new() -> Self {
+    fn with_capacity(capacity: usize) -> Self {
         Population {
-            individuals: Vec::new()
+            individuals: Vec::with_capacity(capacity)
         }
     }
  
     fn populate(&mut self, size: usize, chromosome_factory: &(dyn EvolutionConfig<T>)) {
         while self.individuals.len() < size {
             self.individuals.push(
-                Individual {
-                    chromosome: Box::new(chromosome_factory.create()),
-                    fitness: None
-                }
+                Individual::new(Box::new(chromosome_factory.create()))
             );
         }
+    }
+
+    fn add(&mut self, individual: Individual<T>) {
+        self.individuals.push(individual);
+    }
+
+    fn size(&self) -> usize {
+        self.individuals.len()
     }
 
     fn iter(&self) -> slice::Iter<'_, Individual<T>> {
@@ -222,8 +235,27 @@ impl<T: Chromosome> Population<T> {
 
 impl<T: Chromosome> fmt::Display for Population<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut best: Option<f32> = None;
+        let mut sum: f32 = 0f32;
+        let mut num: usize = 0;
+
         for individual in self.individuals.iter() {
             write!(f, "{}\n", individual)?;
+
+            if let Some(fitness) = individual.fitness {
+                sum += fitness;
+                num += 1;
+                best = Some(
+                    match best {
+                        None => fitness,
+                        Some(current_best) => current_best.max(fitness)
+                    }
+                )
+            }
+        }
+
+        if let Some(best_fitness) = best {
+            write!(f, "best = {}, avg. = {}", best_fitness, sum / (num as f32))?;
         }
 
         Ok(())
@@ -235,10 +267,10 @@ trait Selector<T: Chromosome> {
 }
 
 trait SelectionFactory<T: Chromosome> {
-    fn sample_from(&self, population: Population<T>) -> Box<dyn Selector<T>>;
+    fn select_from(&self, population: Population<T>) -> Box<dyn Selector<T>>;
 }
 
-#[derive(clone::Clone)]
+#[derive(Clone, Copy)]
 struct RankBasedSelection {
     group_size: usize
 }
@@ -257,7 +289,7 @@ impl RankBasedSelection {
 }
 
 impl<T: Chromosome> SelectionFactory<T> for RankBasedSelection {
-    fn sample_from(&self, population: Population<T>) -> Box<dyn Selector<T>> {
+    fn select_from(&self, population: Population<T>) -> Box<dyn Selector<T>> {
         Box::new(
             RankBasedSelector {
                 selection: self.clone(),
@@ -293,8 +325,11 @@ impl<T: Chromosome> Selector<T> for RankBasedSelector<T> {
 
 struct GeneticAlgorithm<T: Chromosome> {
     pop_size: usize,
-    population: Population<T>,
-    config: Box<dyn EvolutionConfig<T>>
+    recombination_prob: f32,
+    mutation_prob: f32,
+    selection: Box<dyn SelectionFactory<T>>,
+    config: Box<dyn EvolutionConfig<T>>,
+    population: Option<Population<T>>,
 }
 
 impl<T: Chromosome> GeneticAlgorithm<T> {
@@ -305,26 +340,66 @@ impl<T: Chromosome> GeneticAlgorithm<T> {
         GeneticAlgorithm {
             pop_size,
             config,
-            population: Population::new(),
+            recombination_prob: 0.8,
+            mutation_prob: 0.8,
+            selection: Box::new(RankBasedSelection::new(2)),
+            population: None,
         }
     }
 
     fn start(&mut self) {
-        self.population.populate(self.pop_size, &*(self.config));
+        let mut population = Population::with_capacity(self.pop_size);
+        population.populate(self.pop_size, &*(self.config));
+
+        self.population = Some(population);
     }
 
     fn evaluate(&mut self) {
-        for indiv in self.population.iter_mut() {
-            if let None = indiv.fitness {
-                (*indiv).fitness = Some(self.config.evaluate(&indiv.chromosome));
+        if let Some(population) = &mut self.population {
+            for indiv in population.iter_mut() {
+                if let None = indiv.fitness {
+                    (*indiv).fitness = Some(self.config.evaluate(&indiv.chromosome));
+                }
             }
         }
+    }
+
+    fn breed(&mut self) {
+        let old_population = self.population.take();
+        let selector = (*self.selection).select_from(old_population.unwrap());
+        let mut population = Population::with_capacity(self.pop_size);
+
+        while population.size() < self.pop_size {
+            let mut chromosome = Box::new(
+                if rand::thread_rng().gen::<f32>() < self.recombination_prob {
+                    let parent1 = selector.select();
+                    let parent2 = selector.select();
+                    self.config.recombine(&parent1.chromosome, &parent2.chromosome)
+                } else {
+                    let parent = selector.select();
+                    (*parent.chromosome).clone()
+                }
+            );
+
+            // TODO: Use in-place mutation
+            if rand::thread_rng().gen::<f32>() < self.mutation_prob {
+                chromosome = Box::new(
+                    self.config.mutate(&chromosome)
+                );
+            }
+
+            population.add(Individual::new(chromosome))
+        }
+
+        self.population = Some(population);
     }
 }
 
 impl<T: Chromosome> fmt::Display for GeneticAlgorithm<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Population:\n{}", self.population)?;            
+        if let Some(population) = &self.population {
+            write!(f, "Population:\n{}", population)?;
+        }
 
         Ok(())
     }
@@ -338,7 +413,7 @@ struct MyEvolutionConfig {
 impl MyEvolutionConfig {
     fn new() -> Self {
         MyEvolutionConfig {
-            mutation: BinaryBitMutation::new(0.1),
+            mutation: BinaryBitMutation::new(0.05),
             recombination: BinaryNPointBitCrossover::new(2)
         }
     }
@@ -413,9 +488,24 @@ fn test_init_population() {
     println!("{}", ga);    
 }
 
+fn test_selection() {
+    let ga_config = MyEvolutionConfig::new();
+    let mut ga = GeneticAlgorithm::new(10, Box::new(ga_config));    
+
+    ga.start();
+    ga.evaluate();
+
+    for _ in 0..30 {
+        ga.breed();
+        ga.evaluate();
+        println!("{}", ga);
+    }
+}
+
 fn main() {
     test_creation();
     test_mutation();
     test_recombination();
     test_init_population();
+    test_selection();
 }
