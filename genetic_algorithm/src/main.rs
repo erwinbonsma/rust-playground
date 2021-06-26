@@ -162,8 +162,11 @@ impl Recombination for BinaryNPointBitCrossover {
     }
 }
 
-trait EvolutionConfig<T: Chromosome> {
+trait ChromosomeFactory<T: Chromosome> {
     fn create(&self) -> T;
+}
+
+trait EvolutionConfig<T: Chromosome>: ChromosomeFactory<T> {
     fn mutate(&self, parent: &T) -> T;
     fn recombine(&self, parent1: &T, parent2: &T) -> T;
     fn evaluate(&self, subject: &T) -> f32;
@@ -190,9 +193,21 @@ struct Population<T: Chromosome> {
 }
 
 impl<T: Chromosome> Population<T> {
-    fn new(individuals: Vec<Individual<T>>) -> Self {
+
+    fn new() -> Self {
         Population {
-            individuals
+            individuals: Vec::new()
+        }
+    }
+ 
+    fn populate(&mut self, size: usize, chromosome_factory: &(dyn EvolutionConfig<T>)) {
+        while self.individuals.len() < size {
+            self.individuals.push(
+                Individual {
+                    chromosome: Box::new(chromosome_factory.create()),
+                    fitness: None
+                }
+            );
         }
     }
 
@@ -278,7 +293,7 @@ impl<T: Chromosome> Selector<T> for RankBasedSelector<T> {
 
 struct GeneticAlgorithm<T: Chromosome> {
     pop_size: usize,
-    population: Option<Population<T>>,
+    population: Population<T>,
     config: Box<dyn EvolutionConfig<T>>
 }
 
@@ -290,35 +305,26 @@ impl<T: Chromosome> GeneticAlgorithm<T> {
         GeneticAlgorithm {
             pop_size,
             config,
-            population: None,
+            population: Population::new(),
         }
     }
 
     fn start(&mut self) {
-        let individuals = (0..self.pop_size).map(|_| Individual {
-            chromosome: Box::new(self.config.create()),
-            fitness: None
-        }).collect();
-
-        self.population = Some(Population::new(individuals));
+        self.population.populate(self.pop_size, &*(self.config));
     }
 
     fn evaluate(&mut self) {
-        if let Some(mut population) = &self.population {
-            for indiv in population.iter_mut() {
-                if let None = indiv.fitness {
-                    (*indiv).fitness = Some(self.config.evaluate(&indiv.chromosome));
-                }
-            }    
+        for indiv in self.population.iter_mut() {
+            if let None = indiv.fitness {
+                (*indiv).fitness = Some(self.config.evaluate(&indiv.chromosome));
+            }
         }
     }
 }
 
 impl<T: Chromosome> fmt::Display for GeneticAlgorithm<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let Some(population) = &self.population {
-            write!(f, "Population:\n{}", population);            
-        }
+        write!(f, "Population:\n{}", self.population)?;            
 
         Ok(())
     }
@@ -338,11 +344,13 @@ impl MyEvolutionConfig {
     }
 }
 
-impl EvolutionConfig<BinaryChromosome> for MyEvolutionConfig {
+impl ChromosomeFactory<BinaryChromosome> for MyEvolutionConfig {
     fn create(&self) -> BinaryChromosome {
         BinaryChromosome::new(16)
     }
+}
 
+impl EvolutionConfig<BinaryChromosome> for MyEvolutionConfig {
     fn mutate(&self, parent: &BinaryChromosome) -> BinaryChromosome {
         self.mutation.mutate(parent)
     }
