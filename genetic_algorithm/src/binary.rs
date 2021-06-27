@@ -134,3 +134,46 @@ impl Recombination for BinaryNPointBitCrossover {
         child
     }
 }
+
+#[derive(Debug)]
+pub struct BinaryUniformRecombination {
+    bias: f32,
+}
+
+impl BinaryUniformRecombination {
+
+    /// Creates a new Binary Uniform Recombination operator.
+    ///
+    /// Bias should be in range [0, 1>. When it is 0 there is no bias. Bits are selected with
+    /// equal probability from both parents. As bias increases, the one of the bits from one
+    /// parent are increasingly favoured. As bias approaches 1, all bits are selected from one
+    /// parent which means there is no recombination.
+    pub fn new(bias: f32) -> Self {
+        if bias < 0.0 || bias >= 1.0 {
+            panic!("Bias out of range");
+        }
+
+        BinaryUniformRecombination {
+            bias
+        }
+    }
+}
+
+impl Recombination for BinaryUniformRecombination {
+    type Genotype = BinaryChromosome;
+
+    fn recombine(
+        &self, parent1: &Self::Genotype, parent2: &Self::Genotype
+    ) -> Self::Genotype {
+        let mut child = parent1.clone();
+        let limit = 0.5 * (1.0 + self.bias);
+
+        for i in 0..child.bits.len() {
+            if rand::thread_rng().gen::<f32>() >= limit {
+                child.bits.set(i, parent2.bits.get(i).unwrap());
+            }
+        }
+
+        child
+    }
+}
