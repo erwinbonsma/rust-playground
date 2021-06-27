@@ -1,4 +1,4 @@
-use super::{Chromosome, Mutation, Recombination};
+use super::{Mutation, Recombination};
 use bit_vec::BitVec;
 use rand::{self, Rng};
 use std::{clone, cmp, fmt};
@@ -33,8 +33,6 @@ impl BinaryChromosome {
     }
 }
 
-impl Chromosome for BinaryChromosome {}
-
 impl fmt::Display for BinaryChromosome {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for bit in self.bits.iter() {
@@ -67,9 +65,9 @@ impl BinaryBitMutation {
 }
 
 impl Mutation for BinaryBitMutation {
-    type Chromosome = BinaryChromosome;
+    type Genotype = BinaryChromosome;
 
-    fn mutate(&self, target: &mut Self::Chromosome) {
+    fn mutate(&self, target: &mut Self::Genotype) {
         // Instead of checking for each bit individually if it should be flipped, this function
         // calculates which bits should be flipped. It calculates which bit to mutate next as
         // follows:
@@ -115,11 +113,11 @@ impl BinaryNPointBitCrossover {
 }
 
 impl Recombination for BinaryNPointBitCrossover {
-    type Chromosome = BinaryChromosome;
+    type Genotype = BinaryChromosome;
 
     fn recombine(
-        &self, parent1: &Self::Chromosome, parent2: &Self::Chromosome
-    ) -> Self::Chromosome {
+        &self, parent1: &Self::Genotype, parent2: &Self::Genotype
+    ) -> Self::Genotype {
 
         let range = cmp::min(parent1.bits.len(), parent2.bits.len());
         let mut points: Vec<usize> = (0..self.n).map(

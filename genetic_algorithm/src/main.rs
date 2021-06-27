@@ -1,28 +1,64 @@
-use evolutionary_alg::{ChromosomeFactory, EvolutionConfig, Mutation, Recombination, GeneticAlgorithm};
+use evolutionary_alg::{
+    Genotype, Phenotype, GenotypeFactory, GenotypeManipulation, GenotypeConfig, 
+    Mutation, Recombination, GeneticAlgorithm
+};
 use evolutionary_alg::binary::{BinaryChromosome, BinaryBitMutation, BinaryNPointBitCrossover};
 use evolutionary_alg::selection::RankBasedSelection;
+use bit_vec::BitVec;
+use std::{fmt};
 
-struct MyEvolutionConfig {
+struct MaxOnesPhenotype {
+    bits: BitVec,
+}
+
+impl Phenotype for MaxOnesPhenotype {
+    fn evaluate(&self) -> f32 {
+        // Count the number of ones
+        self.bits.iter().filter(|x| *x).count() as f32 / self.bits.len() as f32
+    }
+}
+
+impl fmt::Display for MaxOnesPhenotype {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // TODO: Avoid duplication with BinaryChromosome
+        for bit in self.bits.iter() {
+            let char = if bit { '1' } else { '0' };
+            write!(f, "{}", char)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Genotype<MaxOnesPhenotype> for BinaryChromosome {
+    fn express(&self) -> MaxOnesPhenotype {
+        MaxOnesPhenotype {
+            bits: self.bits.clone()
+        }
+    }
+} 
+
+struct MaxOnesConfig {
     mutation: BinaryBitMutation,
     recombination: BinaryNPointBitCrossover,
 }
 
-impl MyEvolutionConfig {
+impl MaxOnesConfig {
     fn new() -> Self {
-        MyEvolutionConfig {
+        MaxOnesConfig {
             mutation: BinaryBitMutation::new(0.05),
             recombination: BinaryNPointBitCrossover::new(2)
         }
     }
 }
 
-impl ChromosomeFactory<BinaryChromosome> for MyEvolutionConfig {
+impl GenotypeFactory<MaxOnesPhenotype, BinaryChromosome> for MaxOnesConfig {
     fn create(&self) -> BinaryChromosome {
         BinaryChromosome::new(32)
     }
 }
 
-impl EvolutionConfig<BinaryChromosome> for MyEvolutionConfig {
+impl GenotypeManipulation<MaxOnesPhenotype, BinaryChromosome> for MaxOnesConfig {
     fn mutate(&self, target: &mut BinaryChromosome) {
         self.mutation.mutate(target);
     }
@@ -30,12 +66,9 @@ impl EvolutionConfig<BinaryChromosome> for MyEvolutionConfig {
     fn recombine(&self, parent1: &BinaryChromosome, parent2: &BinaryChromosome) -> BinaryChromosome {
         self.recombination.recombine(parent1, parent2)
     }
-
-    fn evaluate(&self, subject: &BinaryChromosome) -> f32 {
-        // Count the number of ones
-        subject.bits.iter().filter(|x| *x).count() as f32 / subject.bits.len() as f32
-    }
 }
+
+impl GenotypeConfig<MaxOnesPhenotype, BinaryChromosome> for MaxOnesConfig {}
 
 fn test_creation() {
     for _ in 0..10 {
@@ -77,7 +110,7 @@ fn test_recombination() {
 }
 
 fn test_init_population() {
-    let ga_config = MyEvolutionConfig::new();
+    let ga_config = MaxOnesConfig::new();
     let mut ga = GeneticAlgorithm::new(
         10, Box::new(ga_config), Box::new(RankBasedSelection::new(2))
     );
@@ -89,16 +122,18 @@ fn test_init_population() {
 }
 
 fn test_selection() {
-    let ga_config = MyEvolutionConfig::new();
+    let ga_config = MaxOnesConfig::new();
     let mut ga = GeneticAlgorithm::new(
-        10, Box::new(ga_config), Box::new(RankBasedSelection::new(2))
+        20, Box::new(ga_config), Box::new(RankBasedSelection::new(2))
     );
 
     ga.start();
+    ga.grow();
     ga.evaluate();
 
     for _ in 0..30 {
         ga.breed();
+        ga.grow();
         ga.evaluate();
         println!("{}", ga);
     }

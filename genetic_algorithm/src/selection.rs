@@ -1,4 +1,4 @@
-use super::{Chromosome, Individual, Population, SelectionFactory, Selector};
+use super::{Genotype, Phenotype, Individual, Population, SelectionFactory, Selector};
 use rand::{self, Rng};
 
 #[derive(Clone, Copy)]
@@ -6,9 +6,9 @@ pub struct RankBasedSelection {
     group_size: usize
 }
 
-struct RankBasedSelector<T: Chromosome> {
+struct RankBasedSelector<P: Phenotype, G: Genotype<P>> {
     selection: RankBasedSelection,
-    population: Population<T>
+    population: Population<P, G>
 }
 
 impl RankBasedSelection {
@@ -19,8 +19,8 @@ impl RankBasedSelection {
     }
 }
 
-impl<T: Chromosome> SelectionFactory<T> for RankBasedSelection {
-    fn select_from(&self, population: Population<T>) -> Box<dyn Selector<T>> {
+impl<P: Phenotype, G: Genotype<P>> SelectionFactory<P, G> for RankBasedSelection {
+    fn select_from(&self, population: Population<P, G>) -> Box<dyn Selector<P, G>> {
         Box::new(
             RankBasedSelector {
                 selection: self.clone(),
@@ -30,16 +30,16 @@ impl<T: Chromosome> SelectionFactory<T> for RankBasedSelection {
     }
 }
 
-impl<T: Chromosome> RankBasedSelector<T> {
-    fn select_one(&self) -> &Individual<T> {
+impl<P: Phenotype, G: Genotype<P>> RankBasedSelector<P, G> {
+    fn select_one(&self) -> &Individual<P, G> {
         self.population.individuals.get(
             rand::thread_rng().gen_range(0..self.population.individuals.len())
         ).unwrap()
     }
 }
 
-impl<T: Chromosome> Selector<T> for RankBasedSelector<T> {
-    fn select(&self) -> &Individual<T> {
+impl<P: Phenotype, G: Genotype<P>> Selector<P, G> for RankBasedSelector<P, G> {
+    fn select(&self) -> &Individual<P, G> {
         let mut best = self.select_one();
 
         for _ in 1..self.selection.group_size {
