@@ -46,7 +46,7 @@ struct MaxOnesConfig {
 impl MaxOnesConfig {
     fn new() -> Self {
         MaxOnesConfig {
-            mutation: BinaryBitMutation::new(0.05),
+            mutation: BinaryBitMutation::new(0.02),
             recombination: BinaryNPointBitCrossover::new(2)
         }
     }
@@ -128,14 +128,15 @@ fn test_selection() {
     );
 
     ga.start();
-    ga.grow();
-    ga.evaluate();
 
-    for _ in 0..30 {
-        ga.breed();
+    for _ in 0..100 {
         ga.grow();
         ga.evaluate();
-        println!("{}", ga);
+        if let Some(stats) = ga.get_stats() {
+            println!("{:?}", stats);
+        }
+
+        ga.breed();
     }
 }
 

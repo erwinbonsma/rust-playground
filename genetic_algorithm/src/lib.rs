@@ -123,27 +123,8 @@ impl<P: Phenotype, G: Genotype<P>> Population<P, G> {
 
 impl<P: Phenotype, G: Genotype<P>> fmt::Display for Population<P, G> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut best: Option<f32> = None;
-        let mut sum: f32 = 0f32;
-        let mut num: usize = 0;
-
         for individual in self.individuals.iter() {
             write!(f, "{}\n", individual)?;
-
-            if let Some(fitness) = individual.fitness {
-                sum += fitness;
-                num += 1;
-                best = Some(
-                    match best {
-                        None => fitness,
-                        Some(current_best) => current_best.max(fitness)
-                    }
-                )
-            }
-        }
-
-        if let Some(best_fitness) = best {
-            write!(f, "best = {}, avg. = {}", best_fitness, sum / (num as f32))?;
         }
 
         Ok(())
@@ -156,6 +137,12 @@ pub trait Selector<P: Phenotype, G: Genotype<P>> {
 
 pub trait SelectionFactory<P: Phenotype, G: Genotype<P>> {
     fn select_from(&self, population: Population<P, G>) -> Box<dyn Selector<P, G>>;
+}
+
+#[derive(Debug)]
+pub struct Stats {
+    max_fitness: f32,
+    avg_fitness: f32
 }
 
 pub struct GeneticAlgorithm<P: Phenotype, G: Genotype<P>> {
@@ -240,6 +227,36 @@ impl<P: Phenotype, G: Genotype<P>> GeneticAlgorithm<P, G> {
         }
 
         self.population = Some(population);
+    }
+
+    pub fn get_stats(&self) -> Option<Stats> {
+        if let Some(population) = &self.population {
+            let mut max: Option<f32> = None;
+            let mut sum: f32 = 0f32;
+            let mut num: usize = 0;
+
+            for individual in population.individuals.iter() {
+                if let Some(fitness) = individual.fitness {
+                    sum += fitness;
+                    num += 1;
+                    max = Some(
+                        match max {
+                            None => fitness,
+                            Some(current_max) => current_max.max(fitness)
+                        }
+                    )
+                }
+            }
+
+            if let Some(max_fitness) = max {
+                let avg_fitness = sum / (num as f32);
+                Some(Stats { max_fitness, avg_fitness })
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 }
 
