@@ -1,5 +1,5 @@
 [package]
-name = "genetic_algorithm"
+name = "evolutionary_alg"
 version = "0.1.0"
 authors = ["Erwin Bonsma <eriban@users.sourceforge.net>"]
 edition = "2018"
