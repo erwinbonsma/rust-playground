@@ -133,7 +133,7 @@ pub struct Stats {
 }
 
 #[derive(Debug)]
-pub struct GeneticAlgorithm<P: Phenotype, G: Genotype<P>> {
+pub struct EvolutionaryAlgorithm<P: Phenotype, G: Genotype<P>> {
     pop_size: usize,
     recombination_prob: f32,
     mutation_prob: f32,
@@ -142,13 +142,13 @@ pub struct GeneticAlgorithm<P: Phenotype, G: Genotype<P>> {
     population: Option<Population<P, G>>,
 }
 
-impl<P: Phenotype, G: Genotype<P>> GeneticAlgorithm<P, G> {
+impl<P: Phenotype, G: Genotype<P>> EvolutionaryAlgorithm<P, G> {
     pub fn new(
         pop_size: usize,
         config: Box<dyn GenotypeConfig<P, G>>,
         selection: Box<dyn SelectionFactory<P, G>>
     ) -> Self {
-        GeneticAlgorithm {
+        EvolutionaryAlgorithm {
             pop_size,
             config,
             recombination_prob: 0.8,

@@ -1,6 +1,6 @@
 use evolutionary_alg::{
     Genotype, Phenotype, GenotypeFactory, GenotypeManipulation, GenotypeConfig, 
-    Mutation, Recombination, GeneticAlgorithm
+    Mutation, Recombination, EvolutionaryAlgorithm
 };
 use evolutionary_alg::binary::{BinaryChromosome, BinaryBitMutation, BinaryNPointBitCrossover};
 use evolutionary_alg::selection::RankBasedSelection;
@@ -113,7 +113,7 @@ fn test_recombination() {
 
 fn test_init_population() {
     let ga_config = MaxOnesConfig::new();
-    let mut ga = GeneticAlgorithm::new(
+    let mut ga = EvolutionaryAlgorithm::new(
         10, Box::new(ga_config), Box::new(RankBasedSelection::new(2))
     );
 
@@ -126,7 +126,7 @@ fn test_init_population() {
 
 fn test_selection() {
     let ga_config = MaxOnesConfig::new();
-    let mut ga = GeneticAlgorithm::new(
+    let mut ga = EvolutionaryAlgorithm::new(
         20, Box::new(ga_config), Box::new(RankBasedSelection::new(2))
     );
 
