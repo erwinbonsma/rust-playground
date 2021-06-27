@@ -1,7 +1,7 @@
 use super::{Genotype, Phenotype, Individual, Population, SelectionFactory, Selector};
 use rand::{self, Rng};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct RankBasedSelection {
     group_size: usize
 }

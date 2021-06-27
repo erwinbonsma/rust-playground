@@ -1,8 +1,9 @@
 use super::{Mutation, Recombination};
 use bit_vec::BitVec;
 use rand::{self, Rng};
-use std::{clone, cmp, fmt};
+use std::{clone, cmp};
 
+#[derive(Debug)]
 pub struct BinaryChromosome {
     pub bits: BitVec,
 }
@@ -33,17 +34,6 @@ impl BinaryChromosome {
     }
 }
 
-impl fmt::Display for BinaryChromosome {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for bit in self.bits.iter() {
-            let char = if bit { '1' } else { '0' };
-            write!(f, "{}", char)?;
-        }
-
-        Ok(())
-    }
-}
-
 impl clone::Clone for BinaryChromosome {
     fn clone(&self) -> Self {
         BinaryChromosome {
@@ -52,6 +42,7 @@ impl clone::Clone for BinaryChromosome {
     }
 }
 
+#[derive(Debug)]
 pub struct BinaryBitMutation {
     mutate_prob: f32,
 }
@@ -100,6 +91,7 @@ impl Mutation for BinaryBitMutation {
     }
 }
 
+#[derive(Debug)]
 pub struct BinaryNPointBitCrossover {
     n: usize,
 }

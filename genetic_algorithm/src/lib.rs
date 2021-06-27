@@ -12,7 +12,7 @@ use rand::{self, Rng};
 /// * For a given problem you may experiment with multiple genetic encodings, as the encoding
 ///   can have a big impact on the quality of the search. In this case, the phenotype remains the
 ///   same, as they all try to solve the same problem.
-pub trait Phenotype : 'static + fmt::Display {
+pub trait Phenotype : 'static + fmt::Debug {
     /// Evaluates the fitness for the phenotype
     ///
     /// TODO: Generalize to support cases where the fitness cannot be determined in isolation.
@@ -21,7 +21,7 @@ pub trait Phenotype : 'static + fmt::Display {
 }
 
 /// A genotype encodes a solution to the optimisation problem.
-pub trait Genotype<P: Phenotype> : 'static + fmt::Display + clone::Clone {
+pub trait Genotype<P: Phenotype> : 'static + fmt::Debug + clone::Clone {
 
     fn express(&self) -> P;
 
@@ -51,8 +51,9 @@ pub trait GenotypeManipulation<P: Phenotype, G: Genotype<P>> {
 }
 
 pub trait GenotypeConfig<P: Phenotype, G: Genotype<P>>: 
-    GenotypeFactory<P, G> + GenotypeManipulation<P, G> {}
+    GenotypeFactory<P, G> + GenotypeManipulation<P, G> + fmt::Debug {}
 
+#[derive(Debug)]
 pub struct Individual<P: Phenotype, G: Genotype<P>> {
     genotype: Box<G>,
     phenotype: Option<Box<P>>,
@@ -66,20 +67,6 @@ impl<P: Phenotype, G: Genotype<P>> Individual<P, G> {
             phenotype: None,
             fitness: None
         }
-    }
-}
-
-impl<P: Phenotype, G: Genotype<P>> fmt::Display for Individual<P, G> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.genotype)?;
-        if let Some(phenotype) = &self.phenotype {
-            write!(f, " phenotype = {}", phenotype)?;
-        }
-        if let Some(fitness) = self.fitness {
-            write!(f, " fitness = {}", fitness)?;
-        }
-
-        Ok(())
     }
 }
 
@@ -121,10 +108,10 @@ impl<P: Phenotype, G: Genotype<P>> Population<P, G> {
     }
 }
 
-impl<P: Phenotype, G: Genotype<P>> fmt::Display for Population<P, G> {
+impl<P: Phenotype, G: Genotype<P>> fmt::Debug for Population<P, G> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for individual in self.individuals.iter() {
-            write!(f, "{}\n", individual)?;
+            write!(f, "\n{:?}", individual)?;
         }
 
         Ok(())
@@ -135,7 +122,7 @@ pub trait Selector<P: Phenotype, G: Genotype<P>> {
     fn select(&self) -> &Individual<P, G>;
 }
 
-pub trait SelectionFactory<P: Phenotype, G: Genotype<P>> {
+pub trait SelectionFactory<P: Phenotype, G: Genotype<P>>: fmt::Debug {
     fn select_from(&self, population: Population<P, G>) -> Box<dyn Selector<P, G>>;
 }
 
@@ -145,6 +132,7 @@ pub struct Stats {
     avg_fitness: f32
 }
 
+#[derive(Debug)]
 pub struct GeneticAlgorithm<P: Phenotype, G: Genotype<P>> {
     pop_size: usize,
     recombination_prob: f32,
@@ -257,16 +245,6 @@ impl<P: Phenotype, G: Genotype<P>> GeneticAlgorithm<P, G> {
         } else {
             None
         }
-    }
-}
-
-impl<P: Phenotype, G: Genotype<P>> fmt::Display for GeneticAlgorithm<P, G> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let Some(population) = &self.population {
-            write!(f, "Population:\n{}", population)?;
-        }
-
-        Ok(())
     }
 }
 

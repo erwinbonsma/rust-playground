@@ -7,6 +7,7 @@ use evolutionary_alg::selection::RankBasedSelection;
 use bit_vec::BitVec;
 use std::{fmt};
 
+#[derive(Debug)]
 struct MaxOnesPhenotype {
     bits: BitVec,
 }
@@ -38,6 +39,7 @@ impl Genotype<MaxOnesPhenotype> for BinaryChromosome {
     }
 } 
 
+#[derive(Debug)]
 struct MaxOnesConfig {
     mutation: BinaryBitMutation,
     recombination: BinaryNPointBitCrossover,
@@ -73,7 +75,7 @@ impl GenotypeConfig<MaxOnesPhenotype, BinaryChromosome> for MaxOnesConfig {}
 fn test_creation() {
     for _ in 0..10 {
         let chromosome = BinaryChromosome::new(20);
-        println!("{}", chromosome);
+        println!("{:?}", chromosome);
     }
 }
 
@@ -105,7 +107,7 @@ fn test_recombination() {
         let recombination = BinaryNPointBitCrossover::new(n);
         let child = recombination.recombine(&parent1, &parent2);
 
-        println!("{}", child);
+        println!("{:?}", child);
     }
 }
 
@@ -116,9 +118,10 @@ fn test_init_population() {
     );
 
     ga.start();
-    println!("{}", ga);
+    println!("{:?}", ga);
+    ga.grow();
     ga.evaluate();
-    println!("{}", ga);    
+    println!("{:?}", ga);    
 }
 
 fn test_selection() {
