@@ -4,16 +4,16 @@ fn bar(mut s: String)  { s.push_str("!"); }
 
 pub fn main() {
     let s = String::from("Hello");
-    show(&s);
+    // show(&s);
 
     let mut q = s;
     // show(&s);
 
     q.push_str("?");
-    show(&q);
+    // show(&q);
 
     foo(&mut q);
-    show(&q);
+    // show(&q);
 
     bar(q);
     // show(&q);
