@@ -1,2 +1,2 @@
 **/target/
-.devcontainer
+.devcontainer/devcontainer.json
